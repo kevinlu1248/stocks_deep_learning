@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import GRU, LSTM, Dense
+from tensorflow.keras.layers import GRU, LSTM, Dense, Conv1D, MaxPooling1D
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.regularizers import l2, l1_l2
 from tensorflow_core.python.keras.layers import Flatten
@@ -13,6 +13,8 @@ dic = pd.read_csv('./data/ge.us.txt')
 arr = dic.to_numpy()
 trend = arr[:, 4]
 dates = arr[:, 0].astype('datetime64', copy=False)
+# trend = trend[12000:]
+trend = trend[9000:]
 
 data = trend - trend.mean()
 data /= data.std()
@@ -28,7 +30,6 @@ input_size = data.shape[0]  # 14058
 
 do_plot_loss = 1
 do_plot_history = 1
-do_plot = 0
 
 val_steps = (input_size * val_split - 1 - lookback) // batch_size
 
@@ -85,33 +86,28 @@ test_gen = generator(data,
                      step=step,
                      batch_size=batch_size)
 
-model_name = '2XGRU2_dropout'
+model_name = 'LSTM4_dropout'
 
 model = Sequential([
-    GRU(2,
-        input_shape=[None, lookback // step],
-        dropout=0.2,
-        recurrent_dropout=0.2,
-        return_sequences=True),
-    GRU(2,
-        input_shape=[None, lookback // step],
-        dropout=0.2,
-        recurrent_dropout=0.2),
+    LSTM(32,
+         input_shape=[None, lookback // step],
+         dropout=0.1,
+         recurrent_dropout=0.5,
+         return_sequences=True),
+    LSTM(32,
+         input_shape=[None, lookback // step],
+         dropout=0.1,
+         recurrent_dropout=0.5),
+    Dense(32, activation='relu'),
     Dense(1)
 ])
 
-# #  naive approach
+# # Covnet
 # model = Sequential([
-#     Dense(128,
-#           activation='relu',
-#           input_shape=[lookback // step],
-#           kernel_regularizer=l1_l2(0.001)),
-#     Dense(128,
-#           activation='relu',
-#           kernel_regularizer=l1_l2(0.001)),
-#     Dense(128,
-#           activation='relu',
-#           kernel_regularizer=l1_l2(0.001)),
+#     Conv1D(8, 5,
+#            input_shape=[None, lookback // step],
+#            activation='relu'),
+#     MaxPooling1D(2),
 #     Dense(1)
 # ])
 
@@ -146,8 +142,13 @@ def plot_history():
     loss_line, = plt.plot(loss, label="Loss")
     val_line, = plt.plot(val_loss, label="Validation_loss")
     plt.legend(handles=[loss_line, val_line])
-    ylim(0, 0.6)
+    ylim(0, 0.3)
     plt.savefig('figures/{}_loss.png'.format(model_name))
+    plt.show()
+
+
+def plot_data():
+    plt.plot(data)
     plt.show()
 
 
